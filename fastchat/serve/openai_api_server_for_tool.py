@@ -148,7 +148,7 @@ def parse_function_messages(request: ChatCompletionRequest) -> ChatCompletionReq
         if "Observation:" not in stop_words:
             stop_words.append("Observation:")
         request.stop = stop_words
-        # update message
+        # update system message
         tools_text = []
         tools_name_text = []
         for func_info in tools:
@@ -170,15 +170,21 @@ def parse_function_messages(request: ChatCompletionRequest) -> ChatCompletionReq
             tools_name_text=tools_name_text,
         )
         # 用户强制调用工具
-        if request.tool_choice is not None and messages[-1].role == "user":
-            if isinstance(request.tool_choice, str):
+        # if request.tool_choice is not None and messages[-1].role == "user":
+        if request.tool_choice is not None:
+            last_user_message = next(
+                (m for m in reversed(messages) if m.role == "user"), None
+            )
+            if isinstance(request.tool_choice, str) and last_user_message:
                 if request.tool_choice == "auto":
-                    messages[-1].content += SPECIAL_PREFIX_TEMPLATE_TOOL.format(
+                    last_user_message.content += SPECIAL_PREFIX_TEMPLATE_TOOL.format(
                         tool_names=tools_name_text
                     )
-            elif isinstance(request.tool_choice, ToolChoice):
-                messages[-1].content += SPECIAL_PREFIX_TEMPLATE_TOOL_FOR_CHAT.format(
-                    tool_names=request.tool_choice.function.name
+            elif isinstance(request.tool_choice, ToolChoice) and last_user_message:
+                last_user_message.content += (
+                    SPECIAL_PREFIX_TEMPLATE_TOOL_FOR_CHAT.format(
+                        tool_names=request.tool_choice.function.name
+                    )
                 )
             else:
                 logger.error(
@@ -223,8 +229,10 @@ def parse_function_messages(request: ChatCompletionRequest) -> ChatCompletionReq
         elif m.role in ("tool", "function"):
             # 工具调用结果信息回填 Observation: <result>工具返回的结果</result> 包括
             t_content = m.content.lstrip("\n").rstrip()
-            tool_content = f"\nObservation: <result>{t_content}</result>"
-            result_messages.append(ChatMessage(content=tool_content, role="assistant"))
+            tool_content = f"\nObservation: <result>{t_content}</result>\n"
+            assistant_message = result_messages[-1]
+            assistant_message.content += tool_content
+            # result_messages.append(ChatMessage(content=tool_content, role="assistant"))
         else:
             logger.warning("未知角色")
             result_messages.append(m)
