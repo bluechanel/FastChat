@@ -380,7 +380,7 @@ async def create_chat_completion_for_tool(request: ChatCompletionRequest):
         return error_check_ret
 
     gen_params["max_new_tokens"] = max_new_tokens
-    n = request.m or 1
+    n = request.n or 1
 
     # todo  流式 后处理
     if request.stream:
