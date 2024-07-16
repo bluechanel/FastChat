@@ -5,7 +5,7 @@
 - Embeddings. (Reference: https://platform.openai.com/docs/api-reference/embeddings)
 
 Usage:
-python3 -m fastchat.serve.openai_api_server
+python3 -m fastchat.serve.openai_api_server_for_tool
 """
 
 import asyncio
@@ -99,6 +99,8 @@ SPECIAL_PREFIX_TEMPLATE_TOOL = "。你可以使用工具：[{tool_names}]"
 
 SPECIAL_PREFIX_TEMPLATE_TOOL_FOR_CHAT = "。你必须使用工具：[{tool_names}]"
 
+DEFAULT_SYSTEM_MESSAGE = """You are a helpful assistant."""
+
 app_settings = AppSettings()
 app = fastapi.FastAPI()
 headers = {"User-Agent": "FastChat API Server"}
@@ -128,6 +130,15 @@ def parse_function_messages(request: ChatCompletionRequest) -> ChatCompletionReq
         raise HTTPException(
             status_code=400,
             detail="Invalid request: Expecting at least one user message.",
+        )
+    # 第一条消息不是system，添加默认system
+    if messages[0].role != "system":
+        messages.insert(
+            0,
+            ChatMessage(
+                role="system",
+                content=DEFAULT_SYSTEM_MESSAGE,
+            ),
         )
     # 如果请求体有 工具 调用 修改system prompt
     if tools:
