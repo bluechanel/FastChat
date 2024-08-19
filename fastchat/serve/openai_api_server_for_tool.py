@@ -393,7 +393,8 @@ async def create_chat_completion_for_tool(request: ChatCompletionRequest):
     gen_params["max_new_tokens"] = max_new_tokens
     n = request.n or 1
 
-    # todo  流式 后处理
+    if request.functions or request.tools:
+        request.stream = False
     if request.stream:
         generator = chat_completion_stream_generator(
             request.model, gen_params, n, worker_addr
